@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme.dart';
+import 'providers/auth_provider.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/not_found.dart';
 import 'screens/index_screen.dart';
-import 'providers/auth_provider.dart';
+import 'screens/auth/register.dart';
 
 class App extends ConsumerWidget {
   const App({super.key});
@@ -42,9 +43,12 @@ class App extends ConsumerWidget {
                 return isAuthenticated ? const HomeScreen() : const IndexScreen();
               case '/login':
                 return isAuthenticated ? const HomeScreen() : const LoginScreen();
+
               case '/profile':
                 // Redirect to login if trying to access protected routes while unauthenticated
                 return isAuthenticated ? const ProfileScreen() : const LoginScreen();
+              case '/register':
+                return isAuthenticated ? const HomeScreen() : const RegisterScreen();
               default:
                 return const NotFoundScreen();
             }
