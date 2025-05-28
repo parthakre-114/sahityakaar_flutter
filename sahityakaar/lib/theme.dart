@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Custom Sahityakaar color palette
 class SahityakaarColors {
-  static const background = Color(0xFFF3E0C7); // warm parchment
+  static const background = Color(0xFFFDF6E3); // warm parchment
   static const primary = Color(0xFF5D4037);    // dark brown
   static const onPrimary = Colors.white;
   static const secondary = Color(0xFFFFF3E0);  // pale cream

@@ -13,6 +13,7 @@ class IndexScreen extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(flex: 2),
 
@@ -41,26 +42,45 @@ class IndexScreen extends StatelessWidget {
                 style: theme.textTheme.bodyMedium,
               ),
 
-              const Spacer(flex: 3),
-
-              // Buttons
-              SizedBox(
-                width: double.infinity, // Make buttons full width
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/login'),
-                  child: const Text('Login'),
-                ),
-              ),
               const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/register'),
-                  child: const Text('Register'),
+
+              // Divider line
+              const Divider(
+                color: Colors.black,
+                thickness: 1,
+                indent: 50,
+                endIndent: 50,
+              ),
+
+              const SizedBox(height: 32),
+
+              // Centered Buttons with adjusted width
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 280),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pushNamed(context, '/login'),
+                          child: const Text('Login'),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pushNamed(context, '/register'),
+                          child: const Text('Register'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
-              const Spacer(flex: 2),
+              const Spacer(flex: 3),
             ],
           ),
         ),
