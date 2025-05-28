@@ -31,7 +31,10 @@ class IndexScreen extends StatelessWidget {
               // App Name
               Text(
                 'Sahityakaar',
-                style: theme.textTheme.titleLarge,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 32,
+                ),
               ),
 
               const SizedBox(height: 8),
@@ -63,6 +66,12 @@ class IndexScreen extends StatelessWidget {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
                           onPressed: () => Navigator.pushNamed(context, '/login'),
                           child: const Text('Login'),
                         ),
