@@ -23,8 +23,6 @@ final appTheme = ThemeData(
     onPrimary: SahityakaarColors.onPrimary,
     secondary: SahityakaarColors.secondary,
     onSecondary: SahityakaarColors.onSecondary,
-    background: SahityakaarColors.background,
-    onBackground: SahityakaarColors.primary,
     surface: SahityakaarColors.secondary,
     onSurface: SahityakaarColors.primary,
     error: Colors.red,

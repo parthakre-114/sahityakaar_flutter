@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../theme.dart';
 
 class IndexScreen extends StatelessWidget {
   const IndexScreen({super.key});
