@@ -20,7 +20,7 @@ class CustomBottomNav extends ConsumerWidget {
     final selectedIndex = ref.watch(bottomNavProvider);
 
     // Handle navigation based on index
-    void _onItemTapped(int index) {
+    void onItemTapped(int index) {
       ref.read(bottomNavProvider.notifier).state = index;
 
       // Handle navigation based on selected item
@@ -42,7 +42,7 @@ class CustomBottomNav extends ConsumerWidget {
 
     return BottomNavigationBar(
       currentIndex: selectedIndex,
-      onTap: _onItemTapped,
+      onTap: onItemTapped,
       type: BottomNavigationBarType.fixed,
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
