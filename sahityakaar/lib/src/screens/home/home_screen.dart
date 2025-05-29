@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/expandable_editor.dart';
+import '../../widgets/custom_bottom_nav.dart'; // Add this import
 
 /// A stateful widget that consumes Riverpod providers for state management
 class HomeScreen extends ConsumerStatefulWidget {
@@ -18,7 +19,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isExpanded = false; // Controls editor expansion state
   double _opacity = 0.1; // Controls background opacity
   String _selectedCategory = 'Poetry'; // Currently selected content category
-  int _selectedIndex = 0; // Bottom navigation bar selection
 
   // Static data for grid items
   final List<GridItem> _gridItems = [
@@ -114,24 +114,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const ExpandableEditor(),
         ],
       ),
-      // Bottom navigation
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Explore'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle_outline),
-            label: 'Create',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_border),
-            label: 'Favorites',
-          ),
-        ],
-      ),
+      // Replace existing bottomNavigationBar with CustomBottomNav
+      bottomNavigationBar: const CustomBottomNav(),
     );
   }
 

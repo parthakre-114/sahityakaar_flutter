@@ -11,9 +11,30 @@ class CustomBottomNav extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = ref.watch(bottomNavProvider);
 
+    // Handle navigation based on index
+    void _onItemTapped(int index) {
+      ref.read(bottomNavProvider.notifier).state = index;
+
+      // Handle navigation based on selected item
+      switch (index) {
+        case 0: // Home
+          Navigator.pushReplacementNamed(context, '/');
+          break;
+        case 1: // Explore
+          // Add navigation for explore
+          break;
+        case 2: // Create
+          // Add navigation for create
+          break;
+        case 3: // Favorites
+          // Add navigation for favorites
+          break;
+      }
+    }
+
     return BottomNavigationBar(
       currentIndex: selectedIndex,
-      onTap: (index) => ref.read(bottomNavProvider.notifier).state = index,
+      onTap: _onItemTapped,
       type: BottomNavigationBarType.fixed,
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),

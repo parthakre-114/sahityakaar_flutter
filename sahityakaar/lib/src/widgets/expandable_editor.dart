@@ -21,6 +21,24 @@ class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
   double _opacity = 0.1;
   String _selectedCategory = 'Poetry';
 
+  // Simplified auto-save functionality
+  Future<void> _autoSaveContent() async {
+    if (_contentController.text.isEmpty) return;
+
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      await Supabase.instance.client.from('articles').insert({
+        'content': _contentController.text,
+        'category': _selectedCategory,
+        'author_id': user.id,
+      });
+    } catch (e) {
+      debugPrint('Auto-save error: ${e.toString()}');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -56,15 +74,15 @@ class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
           _isExpanded = false;
           _contentController.clear();
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved successfully!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Saved successfully!')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     }
   }
@@ -73,7 +91,10 @@ class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
     return BackdropFilter(
       // Applies gaussian blur effect when editor is expanded
       filter: _isExpanded
-          ? ImageFilter.blur(sigmaX: 0, sigmaY: 0) // Adjust sigma values for desired blur
+          ? ImageFilter.blur(
+              sigmaX: 0,
+              sigmaY: 0,
+            ) // Adjust sigma values for desired blur
           : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
       child: AnimatedContainer(
         // Smooth animation for height changes
@@ -85,7 +106,12 @@ class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
           // Gradient background with dynamic opacity
           gradient: LinearGradient(
             colors: [
-              const Color.fromARGB(255, 42, 49, 49).withOpacity(_isExpanded ? 0.4 : 0.2),
+              const Color.fromARGB(
+                255,
+                42,
+                49,
+                49,
+              ).withOpacity(_isExpanded ? 0.4 : 0.2),
               Colors.blue.shade100.withOpacity(_isExpanded ? 0.3 : 0.1),
             ],
             begin: Alignment.topLeft,
@@ -112,7 +138,7 @@ class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
                   // Edit icon
                   Icon(Icons.edit_note, color: Colors.teal.shade600),
                   const SizedBox(width: 12),
-                  
+
                   // Conditional UI based on expansion state
                   if (!_isExpanded) ...[
                     // Collapsed state input field
@@ -137,13 +163,18 @@ class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
                     // Category dropdown
                     DropdownButton<String>(
                       value: _selectedCategory,
-                      icon: Icon(Icons.arrow_drop_down, color: Colors.teal.shade600),
+                      icon: Icon(
+                        Icons.arrow_drop_down,
+                        color: Colors.teal.shade600,
+                      ),
                       underline: Container(),
                       items: ['Poetry', 'Stories', 'Articles', 'Quotes']
-                          .map((category) => DropdownMenuItem(
-                                value: category,
-                                child: Text(category),
-                              ))
+                          .map(
+                            (category) => DropdownMenuItem(
+                              value: category,
+                              child: Text(category),
+                            ),
+                          )
                           .toList(),
                       onChanged: (value) {
                         if (value != null) {
@@ -159,11 +190,16 @@ class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
                     ),
                     IconButton(
                       icon: Icon(Icons.close, color: Colors.teal.shade600),
-                      onPressed: () {
-                        setState(() {
-                          _isExpanded = false;
-                          _contentController.clear();
-                        });
+                      onPressed: () async {
+                        if (_contentController.text.isNotEmpty) {
+                          await _autoSaveContent();
+                        }
+                        if (mounted) {
+                          setState(() {
+                            _isExpanded = false;
+                            _contentController.clear();
+                          });
+                        }
                       },
                     ),
                   ],
@@ -175,7 +211,10 @@ class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
             if (_isExpanded)
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: TextField(
                     controller: _contentController,
                     decoration: const InputDecoration(
@@ -199,8 +238,17 @@ class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
     );
   }
 
+  // Modify close button handler and add WillPopScope
   @override
   Widget build(BuildContext context) {
-    return _buildEditor();
+    return WillPopScope(
+      onWillPop: () async {
+        if (_isExpanded && _contentController.text.isNotEmpty) {
+          await _autoSaveContent();
+        }
+        return true;
+      },
+      child: _buildEditor(),
+    );
   }
 }
