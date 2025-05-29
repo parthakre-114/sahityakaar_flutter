@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Provider for managing bottom nav state globally
+/// Global provider for managing bottom navigation state
+/// Uses Riverpod StateProvider to maintain selected tab index across the app
+/// Default value is 0 (Home tab)
 final bottomNavProvider = StateProvider<int>((ref) => 0);
 
+/// CustomBottomNav is a reusable bottom navigation bar widget.
+/// It provides navigation between main app sections:
+/// - Home: Main feed and categories
+/// - Explore: Discover content
+/// - Create: Quick access to content creation
+/// - Favorites: Saved/liked content
 class CustomBottomNav extends ConsumerWidget {
   const CustomBottomNav({super.key});
 

@@ -3,11 +3,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:ui';
 
-// Providers for managing editor state
+/// Global providers for managing editor state across the app
+/// These providers handle the editor's expanded state, content, and selected category
+
+/// Controls whether the editor is expanded or collapsed
 final editorExpandedProvider = StateProvider<bool>((ref) => false);
+
+/// Manages the current content being edited
 final editorContentProvider = StateProvider<String>((ref) => '');
+
+/// Tracks the currently selected content category
 final selectedCategoryProvider = StateProvider<String>((ref) => 'Poetry');
 
+/// ExpandableEditor is a floating editor widget that can expand/collapse
+/// It provides a quick way to create content from any screen
+/// Features:
+/// - Expandable/collapsible animation
+/// - Category selection
+/// - Auto-save functionality
+/// - Blur effect when expanded
+/// - Gradient background
 class ExpandableEditor extends ConsumerStatefulWidget {
   const ExpandableEditor({super.key});
 
@@ -16,12 +31,19 @@ class ExpandableEditor extends ConsumerStatefulWidget {
 }
 
 class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
+  /// Controller for managing text input in the editor
   final _contentController = TextEditingController();
+
+  /// Local state for editor expansion
   bool _isExpanded = false;
-  double _opacity = 0.1;
+
+  /// Selected category for the current content
   String _selectedCategory = 'Poetry';
 
-  // Simplified auto-save functionality
+  /// Automatically saves content to Supabase when:
+  /// - User closes the editor
+  /// - User navigates back
+  /// - App is minimized
   Future<void> _autoSaveContent() async {
     if (_contentController.text.isEmpty) return;
 
@@ -40,21 +62,18 @@ class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _contentController.addListener(() {
-      setState(() {
-        _opacity = _contentController.text.isEmpty ? 0.1 : 0.9;
-      });
-    });
-  }
-
-  @override
   void dispose() {
+    // Clean up resources when widget is disposed
     _contentController.dispose();
     super.dispose();
   }
 
+  /// Saves the current article to Supabase database
+  /// - Validates content is not empty
+  /// - Checks user authentication
+  /// - Stores content with category and author information
+  /// - Shows success/error message
+  /// - Clears editor on successful save
   Future<void> _saveArticle() async {
     if (_contentController.text.isEmpty) return;
 
@@ -62,7 +81,6 @@ class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
-      // Insert article into Supabase
       await Supabase.instance.client.from('articles').insert({
         'content': _contentController.text,
         'category': _selectedCategory,
@@ -87,23 +105,22 @@ class _ExpandableEditorState extends ConsumerState<ExpandableEditor> {
     }
   }
 
+  /// Builds the main editor widget with animations and styling
+  /// Features:
+  /// - Backdrop blur effect when expanded
+  /// - Smooth height animation
+  /// - Gradient background with dynamic opacity
+  /// - Rounded corners and border
   Widget _buildEditor() {
     return BackdropFilter(
-      // Applies gaussian blur effect when editor is expanded
       filter: _isExpanded
-          ? ImageFilter.blur(
-              sigmaX: 0,
-              sigmaY: 0,
-            ) // Adjust sigma values for desired blur
+          ? ImageFilter.blur(sigmaX: 0, sigmaY: 0)
           : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
       child: AnimatedContainer(
-        // Smooth animation for height changes
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.symmetric(horizontal: 12),
-        // Dynamic height based on expansion state
         height: _isExpanded ? MediaQuery.of(context).size.height * 0.7 : 56,
         decoration: BoxDecoration(
-          // Gradient background with dynamic opacity
           gradient: LinearGradient(
             colors: [
               const Color.fromARGB(

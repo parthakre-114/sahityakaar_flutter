@@ -1,11 +1,19 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../category/category_screen.dart';
 import '../../widgets/expandable_editor.dart';
-import '../../widgets/custom_bottom_nav.dart'; // Add this import
+import '../../widgets/custom_bottom_nav.dart';
 
-/// A stateful widget that consumes Riverpod providers for state management
+/// HomeScreen is the main landing page of the Sahityakaar app.
+/// It displays a grid of content categories (Poetry, Stories, Articles, Quotes)
+/// and includes a floating editor for quick content creation.
+///
+/// Features:
+/// - Animated category grid
+/// - Quick access to content creation
+/// - Navigation to category-specific screens
+/// - Profile access
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -14,13 +22,12 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  // Controllers and State Management
-  final _contentController = TextEditingController(); // Manages text input content
-  bool _isExpanded = false; // Controls editor expansion state
-  double _opacity = 0.1; // Controls background opacity
-  String _selectedCategory = 'Poetry'; // Currently selected content category
-
-  // Static data for grid items
+  /// Static data for category grid items
+  /// Each item represents a content category with its own:
+  /// - title: The category name
+  /// - subtitle: A brief description
+  /// - color: Theme color for the category
+  /// - icon: Visual representation
   final List<GridItem> _gridItems = [
     GridItem(
       title: 'Poetry',
@@ -48,27 +55,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ),
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    // Listener for text changes to update opacity
-    _contentController.addListener(() {
-      setState(() {
-        _opacity = _contentController.text.isEmpty ? 0.1 : 0.9;
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _contentController.dispose(); // Clean up controller when widget is disposed
-    super.dispose();
-  }
-
   /// Builds the expandable editor widget with backdrop blur
-  
+
   /// Handles saving article to Supabase database
- 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -96,12 +86,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   // Grid of category cards
                   Expanded(
                     child: GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 0.75,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.75,
+                          ),
                       itemCount: _gridItems.length,
                       itemBuilder: (context, index) => _buildGridItem(index),
                     ),
@@ -121,53 +112,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   /// Builds a single grid item for the category grid
   Widget _buildGridItem(int index) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _gridItems[index].color,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              CategoryScreen(category: _gridItems[index].title),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: _gridItems[index].color.withOpacity(0.3),
-            spreadRadius: 2,
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            _gridItems[index].icon,
-            size: 48, // Larger icon
-            color: Colors.white.withOpacity(0.9),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _gridItems[index].title,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+      child: Container(
+        decoration: BoxDecoration(
+          color: _gridItems[index].color,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: _gridItems[index].color.withOpacity(0.3),
+              spreadRadius: 2,
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              _gridItems[index].subtitle,
-              textAlign: TextAlign.center,
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _gridItems[index].icon,
+              size: 48, // Larger icon
+              color: Colors.white.withOpacity(0.9),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _gridItems[index].title,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
-                fontSize: 14,
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                _gridItems[index].subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
