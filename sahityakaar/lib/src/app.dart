@@ -8,6 +8,7 @@ import 'screens/profile/profile_screen.dart';
 import 'screens/not_found.dart';
 import 'screens/index_screen.dart';
 import 'screens/auth/register.dart';
+import 'screens/editor/editor_screen.dart';
 
 class App extends ConsumerWidget {
   const App({super.key});
@@ -40,15 +41,28 @@ class App extends ConsumerWidget {
           builder: (context) {
             switch (settings.name) {
               case '/':
-                return isAuthenticated ? const HomeScreen() : const IndexScreen();
+                return isAuthenticated
+                    ? const HomeScreen()
+                    : const IndexScreen();
               case '/login':
-                return isAuthenticated ? const HomeScreen() : const LoginScreen();
+                return isAuthenticated
+                    ? const HomeScreen()
+                    : const LoginScreen();
 
               case '/profile':
                 // Redirect to login if trying to access protected routes while unauthenticated
-                return isAuthenticated ? const ProfileScreen() : const LoginScreen();
+                return isAuthenticated
+                    ? const ProfileScreen()
+                    : const LoginScreen();
               case '/register':
-                return isAuthenticated ? const HomeScreen() : const RegisterScreen();
+                return isAuthenticated
+                    ? const HomeScreen()
+                    : const RegisterScreen();
+              case '/editor':
+                return isAuthenticated 
+                    ? const EditorScreen()
+                    : const LoginScreen();
+               
               default:
                 return const NotFoundScreen();
             }
