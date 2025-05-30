@@ -24,9 +24,7 @@ class CategoryScreen extends ConsumerWidget {
     final articlesAsync = ref.watch(articlesProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(category),
-      ),
+      appBar: AppBar(title: Text(category)),
       body: Column(
         children: [
           // Editor at the top
@@ -85,7 +83,9 @@ class CategoryScreen extends ConsumerWidget {
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.teal.shade200.withOpacity(0.3)),
+                          border: Border.all(
+                            color: Colors.teal.shade200.withOpacity(0.3),
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.teal.shade200.withOpacity(0.2),
@@ -115,7 +115,9 @@ class CategoryScreen extends ConsumerWidget {
                                   const Icon(Icons.access_time, size: 14),
                                   const SizedBox(width: 4),
                                   Text(
-                                    _formatDate(article['created_at'] as String),
+                                    _formatDate(
+                                      article['created_at'] as String,
+                                    ),
                                     style: const TextStyle(fontSize: 12),
                                   ),
                                 ],
