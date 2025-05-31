@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/expandable_editor.dart';
 import '../../widgets/custom_bottom_nav.dart';
+import '../../widgets/label_filter.dart';
 import '../article/article_detail_screen.dart';
 import '../../providers/articles_provider.dart';
 
-/// CategoryScreen displays articles filtered by a specific category.
-/// It shows articles in a 2-column grid layout with a floating editor
-/// for creating new articles.
+/// CategoryScreen displays articles filtered by a specific category and optional labels.
+/// It shows articles in a 2-column grid layout with a floating editor and label filters
+/// for creating new articles and filtering existing ones.
 class CategoryScreen extends ConsumerWidget {
   final String category;
 
@@ -22,9 +23,24 @@ class CategoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final articlesAsync = ref.watch(articlesProvider);
+    final selectedLabels = ref.watch(selectedLabelsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(category)),
+      appBar: AppBar(
+        title: Text(category),
+        bottom: selectedLabels.isNotEmpty
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(30),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Filtered by ${selectedLabels.length} label(s)',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              )
+            : null,
+      ),
       body: Column(
         children: [
           // Editor at the top
@@ -32,6 +48,9 @@ class CategoryScreen extends ConsumerWidget {
             padding: EdgeInsets.all(12.0),
             child: ExpandableEditor(),
           ),
+
+          // Label filter
+          const LabelFilter(),
 
           // Articles grid below
           Expanded(
@@ -44,7 +63,7 @@ class CategoryScreen extends ConsumerWidget {
                 if (categoryArticles.isEmpty) {
                   return Center(
                     child: Text(
-                      'No $category articles yet.\nBe the first to write one!',
+                      'No $category articles${selectedLabels.isNotEmpty ? ' with selected labels' : ''} yet.\nBe the first to write one!',
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 16),
                     ),

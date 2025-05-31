@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// Provider for the currently selected labels filter
+final selectedLabelsProvider = StateProvider<Set<String>>((ref) => {});
+
 final articlesProvider =
     AsyncNotifierProvider<ArticlesNotifier, List<Map<String, dynamic>>>(() {
       return ArticlesNotifier();
@@ -13,11 +16,35 @@ class ArticlesNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
   }
 
   Future<List<Map<String, dynamic>>> _fetchArticles() async {
-    final response = await Supabase.instance.client
-        .from('articles')
-        .select()
-        .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+    final selectedLabels = ref.read(selectedLabelsProvider);
+
+    if (selectedLabels.isEmpty) {
+      final response = await Supabase.instance.client
+          .from('articles')
+          .select()
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } else {
+      // Fetch articles that have any of the selected labels
+      final response = await Supabase.instance.client
+          .from('articles')
+          .select('''
+            *,
+            article_labels!inner (
+              labels!inner (
+                name
+              )
+            )
+          ''')
+          .or(
+            selectedLabels
+                .map((label) => 'article_labels.labels.name.eq.$label')
+                .join(','),
+          )
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    }
   }
 
   Future<void> updateArticle(String id, String content) async {

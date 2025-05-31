@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/edit_article_editor.dart';
 import '../../providers/articles_provider.dart';
+import '../../providers/labels_provider.dart';
 
 /// Provider to control the article editing state
 final isEditingProvider = StateProvider<bool>((ref) => false);
 
 /// ArticleDetailScreen displays the full content of an article
-/// with additional details like creation time and category.
 class ArticleDetailScreen extends ConsumerWidget {
   final Map<String, dynamic> article;
   final String category;
@@ -19,15 +19,9 @@ class ArticleDetailScreen extends ConsumerWidget {
     required this.category,
   });
 
-  String _formatDate(String dateStr) {
-    final date = DateTime.parse(dateStr);
-    return '${date.day}/${date.month}/${date.year} at ${date.hour}:${date.minute}';
-  }
-
   /// Toggles the edit mode
   void _toggleEditMode(WidgetRef ref) {
-    final isEditing = ref.read(isEditingProvider.notifier);
-    isEditing.state = !isEditing.state;
+    ref.read(isEditingProvider.notifier).state = !ref.read(isEditingProvider);
   }
 
   /// Shows confirmation dialog before deleting article
@@ -76,34 +70,23 @@ class ArticleDetailScreen extends ConsumerWidget {
   }
 
   /// Handles actions from the more options menu
-  Future<void> _handleMenuAction(BuildContext context, String value) async {
-    switch (value) {
-      case 'share':
-        // TODO: Implement sharing functionality
+  Future<void> _handleMenuAction(
+    BuildContext context,
+    WidgetRef ref,
+    String action,
+  ) async {
+    switch (action) {
+      case 'labels':
+        await _showLabelDialog(context, ref);
         break;
-      case 'bookmark':
-        try {
-          await Supabase.instance.client.from('bookmarks').insert({
-            'article_id': article['id'],
-            'user_id': Supabase.instance.client.auth.currentUser?.id,
-            'created_at': DateTime.now().toIso8601String(),
-          });
-
-          if (context.mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Article bookmarked')));
-          }
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error bookmarking article: $e')),
-            );
-          }
-        }
+      case 'delete':
+        await _showDeleteConfirmation(context, ref);
         break;
       case 'report':
-        _showReportDialog(context);
+        await _showReportDialog(context);
+        break;
+      case 'edit':
+        _toggleEditMode(ref);
         break;
     }
   }
@@ -172,190 +155,392 @@ class ArticleDetailScreen extends ConsumerWidget {
     }
   }
 
+  /// Shows dialog for managing article labels
+  Future<void> _showLabelDialog(BuildContext context, WidgetRef ref) async {
+    final TextEditingController newLabelController = TextEditingController();
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Manage Labels'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Add new label section
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: newLabelController,
+                        decoration: const InputDecoration(
+                          hintText: 'Create new label...',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () async {
+                        final newLabel = newLabelController.text.trim();
+                        if (newLabel.isEmpty) return;
+
+                        try {
+                          debugPrint('Creating new label: $newLabel');
+
+                          // First create the label
+                          final labelResponse = await Supabase.instance.client
+                              .from('labels')
+                              .insert({'name': newLabel})
+                              .select()
+                              .single();
+
+                          debugPrint('Label created: $labelResponse');
+
+                          // Then create the article-label relationship
+                          await Supabase.instance.client
+                              .from('article_labels')
+                              .insert({
+                                'article_id': article['id'],
+                                'label_id': labelResponse['id'],
+                              });
+
+                          // Clear the input and refresh labels
+                          if (context.mounted) {
+                            ref.invalidate(allLabelsProvider);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Label created and added to article',
+                                ),
+                              ),
+                            );
+                            // Close the dialog after successful creation
+                            Navigator.pop(context);
+                          }
+                        } catch (e) {
+                          debugPrint('Error creating label: $e');
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error creating label: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Existing labels
+                Consumer(
+                  builder: (context, ref, _) {
+                    final allLabelsAsync = ref.watch(allLabelsProvider);
+
+                    return allLabelsAsync.when(
+                      data: (allLabels) => Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: allLabels.map((label) {
+                          return FutureBuilder<bool>(
+                            future: Supabase.instance.client
+                                .from('article_labels')
+                                .select()
+                                .eq('article_id', article['id'])
+                                .eq('label_id', label['id'])
+                                .then((result) => result.isNotEmpty),
+                            builder: (context, snapshot) {
+                              final isSelected = snapshot.data ?? false;
+                              return FilterChip(
+                                label: Text(label['name']),
+                                selected: isSelected,
+                                onSelected: (selected) async {
+                                  try {
+                                    if (selected) {
+                                      await Supabase.instance.client
+                                          .from('article_labels')
+                                          .insert({
+                                            'article_id': article['id'],
+                                            'label_id': label['id'],
+                                          });
+                                    } else {
+                                      await Supabase.instance.client
+                                          .from('article_labels')
+                                          .delete()
+                                          .eq('article_id', article['id'])
+                                          .eq('label_id', label['id']);
+                                    }
+                                    ref.invalidate(allLabelsProvider);
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Error updating label: $e',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                              );
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, st) => Text('Error loading labels: $e'),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isEditing = ref.watch(isEditingProvider);
-    final articleState = ref.watch(articlesProvider);
+    final labelsAsync = ref.watch(allLabelsProvider);
 
-    return articleState.when(
-      data: (articles) {
-        final currentArticle = articles.firstWhere(
-          (a) => a['id'] == article['id'],
-          orElse: () => article,
-        );
-
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(category),
-            actions: [
-              // Edit button
-              IconButton(
-                icon: Icon(isEditing ? Icons.close : Icons.edit),
-                onPressed: () => _toggleEditMode(ref),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(article['title'] ?? 'Article'),
+        actions: [
+          IconButton(
+            icon: Icon(isEditing ? Icons.close : Icons.edit),
+            onPressed: () => _toggleEditMode(ref),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) => _handleMenuAction(context, ref, value),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'labels',
+                child: Text('Manage Labels'),
               ),
-              // Delete button
-              IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () => _showDeleteConfirmation(context, ref),
+              const PopupMenuItem(
+                value: 'report',
+                child: Text('Report Article'),
               ),
-              // More options menu
-              PopupMenuButton<String>(
-                onSelected: (value) => _handleMenuAction(context, value),
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'share',
-                    child: Row(
-                      children: [
-                        Icon(Icons.share),
-                        SizedBox(width: 8),
-                        Text('Share'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'bookmark',
-                    child: Row(
-                      children: [
-                        Icon(Icons.bookmark_border),
-                        SizedBox(width: 8),
-                        Text('Save to bookmarks'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'report',
-                    child: Row(
-                      children: [
-                        Icon(Icons.flag),
-                        SizedBox(width: 8),
-                        Text('Report'),
-                      ],
-                    ),
-                  ),
-                ],
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text('Delete Article'),
               ),
             ],
           ),
-          body: isEditing
-              ? EditArticleEditor(
-                  initialContent: currentArticle['content'] as String,
-                  category: category,
-                  onClose: () => _toggleEditMode(ref),
-                  onSaved: (content) async {
-                    try {
-                      await ref
-                          .read(articlesProvider.notifier)
-                          .updateArticle(currentArticle['id'], content);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Article updated successfully'),
-                          ),
-                        );
-                        _toggleEditMode(ref);
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error updating article: $e')),
-                        );
-                      }
-                    }
-                  },
-                )
-              : SingleChildScrollView(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.teal.shade50, Colors.blue.shade50],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+        ],
+      ),
+      body: isEditing
+          ? EditArticleEditor(
+              initialContent: article['content'] as String,
+              category: category,
+              onClose: () => _toggleEditMode(ref),
+              onSaved: (content) async {
+                try {
+                  await ref
+                      .read(articlesProvider.notifier)
+                      .updateArticle(article['id'], content);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Article updated successfully'),
                       ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.teal.shade200.withOpacity(0.2),
-                                  blurRadius: 8,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Category tag
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.teal.shade100.withOpacity(
-                                      0.3,
-                                    ),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    category,
-                                    style: TextStyle(
-                                      color: Colors.teal.shade700,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                // Article content
-                                Text(
-                                  currentArticle['content'] as String,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey.shade800,
-                                    height: 1.8,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                // Creation time
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.access_time,
-                                      size: 16,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Created on ${_formatDate(currentArticle['created_at'] as String)}',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                    );
+                    _toggleEditMode(ref);
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error updating article: $e')),
+                    );
+                  }
+                }
+              },
+            )
+          : Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.teal.shade50.withOpacity(0.3),
+                    Colors.blue.shade50.withOpacity(0.2),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Article content with larger text and styling
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 24,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            spreadRadius: 1,
                           ),
                         ],
                       ),
+                      child: Text(
+                        article['content'] ?? '',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontSize: 18,
+                          height: 1.8,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ),
-                  ),
+
+                    const SizedBox(height: 24),
+
+                    // Labels section with a title
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'Labels',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    labelsAsync.when(
+                      data: (labels) {
+                        final articleLabels = labels.where((label) {
+                          return label['articles']?.any(
+                                (a) => a['id'] == article['id'],
+                              ) ??
+                              false;
+                        }).toList();
+
+                        return articleLabels.isEmpty
+                            ? const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 16),
+                                child: Text('No labels yet'),
+                              )
+                            : Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: articleLabels.map((label) {
+                                    return Chip(
+                                      label: Text(label['name']),
+                                      deleteIcon: const Icon(
+                                        Icons.close,
+                                        size: 18,
+                                      ),
+                                      onDeleted: () async {
+                                        try {
+                                          await Supabase.instance.client
+                                              .from('article_labels')
+                                              .delete()
+                                              .match({
+                                                'article_id': article['id'],
+                                                'label_id': label['id'],
+                                              });
+                                          ref.invalidate(allLabelsProvider);
+                                        } catch (e) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Error removing label: $e',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                              );
+                      },
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, st) => Text('Error loading labels: $e'),
+                    ),
+                  ],
                 ),
-        );
-      },
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, stack) =>
-          Scaffold(body: Center(child: Text('Error: $error'))),
+              ),
+            ),
     );
   }
 }
+
+/* New Design (for reference)
+  body: isEditing
+      ? EditArticleEditor(...)  // Same as above
+      : SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Labels section
+              labelsAsync.when(
+                data: (labels) => Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: labels.map((label) {
+                    return Chip(
+                      label: Text(label['name']),
+                      onDeleted: () async {
+                        try {
+                          await Supabase.instance.client
+                              .from('article_labels')
+                              .delete()
+                              .match({
+                                'article_id': article['id'],
+                                'label_id': label['id']
+                              });
+                          ref.invalidate(allLabelsProvider);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error removing label: $e'),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, st) => Text('Error loading labels: $e'),
+              ),
+              const SizedBox(height: 16),
+              // Article content
+              Text(
+                article['content'] ?? '',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ],
+          ),
+        ),
+*/
